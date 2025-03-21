@@ -48,6 +48,51 @@
         th {
             background-color: #f2f2f2;
         }
+        .switch-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            margin-right: 10px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
         @media (max-width: 480px) {
             #input-container {
                 flex-direction: row;
@@ -67,6 +112,13 @@
         <input type="number" id="weight-input" placeholder="Ingrese el peso en KG">
         <button id="add-button">Agregar</button>
     </div>
+    <div class="switch-container">
+        <label class="switch">
+            <input type="checkbox" id="average-switch">
+            <span class="slider"></span>
+        </label>
+        <span>Mostrar promedio diario</span>
+    </div>
     <canvas id="weight-chart"></canvas>
     <div id="button-container">
         <button id="export-button">Exportar como CSV</button>
@@ -84,11 +136,11 @@
     </table>
 
     <script>
-        // El script JavaScript permanece sin cambios
         const weightInput = document.getElementById('weight-input');
         const addButton = document.getElementById('add-button');
         const exportButton = document.getElementById('export-button');
         const resetButton = document.getElementById('reset-button');
+        const averageSwitch = document.getElementById('average-switch');
         const weightTable = document.getElementById('weight-table').getElementsByTagName('tbody')[0];
         const ctx = document.getElementById('weight-chart').getContext('2d');
         let chart;
@@ -100,6 +152,12 @@
                    String(date.getUTCHours()).padStart(2, '0') + ':' +
                    String(date.getUTCMinutes()).padStart(2, '0') + ':' +
                    String(date.getUTCSeconds()).padStart(2, '0');
+        }
+        
+        function formatDateShort(date) {
+            return date.getUTCFullYear() + '-' +
+                   String(date.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                   String(date.getUTCDate()).padStart(2, '0');
         }
 
         function addWeight() {
@@ -130,11 +188,34 @@
             });
         }
 
+        function calculateDailyAverages(measurements) {
+            const dailyData = {};
+            
+            measurements.forEach(m => {
+                const date = formatDateShort(new Date(m.timestamp));
+                if (!dailyData[date]) {
+                    dailyData[date] = { total: 0, count: 0 };
+                }
+                dailyData[date].total += m.weight;
+                dailyData[date].count += 1;
+            });
+            
+            return Object.entries(dailyData).map(([date, data]) => ({
+                timestamp: new Date(date),
+                weight: data.total / data.count
+            }));
+        }
+
         function updateChart() {
             const measurements = JSON.parse(localStorage.getItem('weightMeasurements') || '[]');
             measurements.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            let dataToUse = measurements;
+            if (averageSwitch.checked) {
+                dataToUse = calculateDailyAverages(measurements);
+            }
 
-            const data = measurements.map(m => ({
+            const data = dataToUse.map(m => ({
                 x: new Date(m.timestamp),
                 y: m.weight
             }));
@@ -175,7 +256,7 @@
                             time: {
                                 unit: 'day',
                                 displayFormats: {
-                                    day: 'yyyy-MM-dd HH:mm:ss'
+                                    day: 'yyyy-MM-dd'
                                 }
                             },
                             title: {
@@ -246,6 +327,8 @@
         addButton.addEventListener('click', addWeight);
         exportButton.addEventListener('click', exportToCSV);
         resetButton.addEventListener('click', resetData);
+        averageSwitch.addEventListener('change', updateChart);
+        
         updateTable();
         updateChart();
     </script>
