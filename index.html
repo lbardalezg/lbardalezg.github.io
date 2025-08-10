@@ -119,6 +119,13 @@
         </label>
         <span>Mostrar promedio diario</span>
     </div>
+
+    <div id="date-range-container" style="margin-bottom: 20px;">
+        <label for="start-date">Rango:</label>
+        <input type="date" id="start-date">
+        <input type="date" id="end-date">
+    </div>
+
     <canvas id="weight-chart"></canvas>
     <div id="button-container">
         <button id="export-button">Exportar como CSV</button>
@@ -143,6 +150,8 @@
         const averageSwitch = document.getElementById('average-switch');
         const weightTable = document.getElementById('weight-table').getElementsByTagName('tbody')[0];
         const ctx = document.getElementById('weight-chart').getContext('2d');
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
         let chart;
 
         function formatDate(date) {
@@ -190,7 +199,6 @@
 
         function calculateDailyAverages(measurements) {
             const dailyData = {};
-            
             measurements.forEach(m => {
                 const date = formatDateShort(new Date(m.timestamp));
                 if (!dailyData[date]) {
@@ -199,7 +207,6 @@
                 dailyData[date].total += m.weight;
                 dailyData[date].count += 1;
             });
-            
             return Object.entries(dailyData).map(([date, data]) => ({
                 timestamp: new Date(date),
                 weight: data.total / data.count
@@ -215,11 +222,22 @@
                 dataToUse = calculateDailyAverages(measurements);
             }
 
-            const data = dataToUse.map(m => ({
+            // Filtrar los datos por rango de fechas
+            const startDate = startDateInput.value ? new Date(startDateInput.value + 'T00:00:00Z') : null;
+            const endDate = endDateInput.value ? new Date(endDateInput.value + 'T23:59:59Z') : null;
+
+            const filteredData = dataToUse.filter(m => {
+                const date = new Date(m.timestamp);
+                const isAfterStart = !startDate || date >= startDate;
+                const isBeforeEnd = !endDate || date <= endDate;
+                return isAfterStart && isBeforeEnd;
+            });
+
+            const data = filteredData.map(m => ({
                 x: new Date(m.timestamp),
                 y: m.weight
             }));
-
+            
             if (chart) {
                 chart.destroy();
             }
@@ -300,12 +318,10 @@
 
             let csvContent = "data:text/csv;charset=utf-8,";
             csvContent += "Fecha y Hora (UTC),Peso (KG)\n";
-
             measurements.forEach(m => {
                 const date = formatDate(new Date(m.timestamp));
                 csvContent += `${date},${m.weight}\n`;
             });
-
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
@@ -328,9 +344,12 @@
         exportButton.addEventListener('click', exportToCSV);
         resetButton.addEventListener('click', resetData);
         averageSwitch.addEventListener('change', updateChart);
+        startDateInput.addEventListener('change', updateChart);
+        endDateInput.addEventListener('change', updateChart);
         
         updateTable();
         updateChart();
     </script>
 </body>
 </html>
+
