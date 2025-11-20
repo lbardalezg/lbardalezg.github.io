@@ -10,64 +10,64 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+max-width: 800px;
             margin: 0 auto;
             padding: 20px;
         }
         #input-container, #button-container {
             margin-bottom: 20px;
-        }
+}
         #input-container {
             display: flex;
-            gap: 10px;
+gap: 10px;
         }
         #weight-input {
             flex-grow: 1;
-            padding: 5px;
+padding: 5px;
             font-size: 16px;
         }
         button {
             padding: 5px 10px;
-            font-size: 16px;
+font-size: 16px;
             white-space: nowrap;
         }
         #reset-button {
             background-color: #ff4d4d;
-            color: white;
+color: white;
             border: none;
         }
         table {
             width: 100%;
-            border-collapse: collapse;
+border-collapse: collapse;
         }
         th, td {
             border: 1px solid #ddd;
-            padding: 8px;
+padding: 8px;
             text-align: left;
         }
         th {
             background-color: #f2f2f2;
-        }
+}
         .switch-container {
             display: flex;
-            align-items: center;
+align-items: center;
             margin-bottom: 10px;
         }
         .switch {
             position: relative;
-            display: inline-block;
+display: inline-block;
             width: 60px;
             height: 34px;
             margin-right: 10px;
         }
         .switch input {
             opacity: 0;
-            width: 0;
+width: 0;
             height: 0;
         }
         .slider {
             position: absolute;
-            cursor: pointer;
+cursor: pointer;
             top: 0;
             left: 0;
             right: 0;
@@ -75,10 +75,10 @@
             background-color: #ccc;
             transition: .4s;
             border-radius: 34px;
-        }
+}
         .slider:before {
             position: absolute;
-            content: "";
+content: "";
             height: 26px;
             width: 26px;
             left: 4px;
@@ -86,23 +86,23 @@
             background-color: white;
             transition: .4s;
             border-radius: 50%;
-        }
+}
         input:checked + .slider {
             background-color: #2196F3;
-        }
+}
         input:checked + .slider:before {
             transform: translateX(26px);
-        }
+}
         @media (max-width: 480px) {
             #input-container {
                 flex-direction: row;
-            }
+}
             #weight-input {
                 width: 60%;
-            }
+}
             #add-button {
                 width: 40%;
-            }
+}
         }
     </style>
 </head>
@@ -119,6 +119,14 @@
         </label>
         <span>Mostrar promedio diario</span>
     </div>
+    <div class="switch-container">
+        <label class="switch">
+            <input type="checkbox" id="weekly-average-switch">
+            <span class="slider"></span>
+        
+</label>
+        <span>Mostrar promedio semanal</span>
+    </div>
 
     <div id="date-range-container" style="margin-bottom: 20px;">
         <label for="start-date">Rango:</label>
@@ -132,7 +140,8 @@
         <button id="reset-button">Resetear Datos</button>
     </div>
     <h2>Historial de Mediciones</h2>
-    <table id="weight-table">
+    <table 
+id="weight-table">
         <thead>
             <tr>
                 <th>Fecha y Hora (UTC)</th>
@@ -143,207 +152,269 @@
     </table>
 
     <script>
-        const weightInput = document.getElementById('weight-input');
+        
+const weightInput = document.getElementById('weight-input');
         const addButton = document.getElementById('add-button');
         const exportButton = document.getElementById('export-button');
         const resetButton = document.getElementById('reset-button');
         const averageSwitch = document.getElementById('average-switch');
-        const weightTable = document.getElementById('weight-table').getElementsByTagName('tbody')[0];
+        const weeklyAverageSwitch = document.getElementById('weekly-average-switch');
+const weightTable = document.getElementById('weight-table').getElementsByTagName('tbody')[0];
         const ctx = document.getElementById('weight-chart').getContext('2d');
         const startDateInput = document.getElementById('start-date');
         const endDateInput = document.getElementById('end-date');
         let chart;
-
-        function formatDate(date) {
+function formatDate(date) {
             return date.getUTCFullYear() + '-' +
                    String(date.getUTCMonth() + 1).padStart(2, '0') + '-' +
                    String(date.getUTCDate()).padStart(2, '0') + ' ' +
                    String(date.getUTCHours()).padStart(2, '0') + ':' +
-                   String(date.getUTCMinutes()).padStart(2, '0') + ':' +
+          
+         String(date.getUTCMinutes()).padStart(2, '0') + ':' +
                    String(date.getUTCSeconds()).padStart(2, '0');
-        }
+}
         
         function formatDateShort(date) {
             return date.getUTCFullYear() + '-' +
                    String(date.getUTCMonth() + 1).padStart(2, '0') + '-' +
                    String(date.getUTCDate()).padStart(2, '0');
-        }
+}
 
         function addWeight() {
             const weight = parseFloat(weightInput.value);
-            if (isNaN(weight)) {
+if (isNaN(weight)) {
                 alert('Por favor, ingrese un número válido');
-                return;
+return;
             }
 
             const timestamp = new Date().toISOString();
-            const measurement = { timestamp, weight };
+const measurement = { timestamp, weight };
             let measurements = JSON.parse(localStorage.getItem('weightMeasurements') || '[]');
             measurements.push(measurement);
             localStorage.setItem('weightMeasurements', JSON.stringify(measurements));
 
             updateTable();
             updateChart();
-            weightInput.value = '';
+weightInput.value = '';
         }
 
         function updateTable() {
             const measurements = JSON.parse(localStorage.getItem('weightMeasurements') || '[]');
-            weightTable.innerHTML = '';
+weightTable.innerHTML = '';
             measurements.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach(m => {
                 const row = weightTable.insertRow();
                 row.insertCell(0).textContent = formatDate(new Date(m.timestamp));
                 row.insertCell(1).textContent = m.weight;
             });
-        }
+}
 
         function calculateDailyAverages(measurements) {
             const dailyData = {};
-            measurements.forEach(m => {
+measurements.forEach(m => {
                 const date = formatDateShort(new Date(m.timestamp));
                 if (!dailyData[date]) {
                     dailyData[date] = { total: 0, count: 0 };
                 }
-                dailyData[date].total += m.weight;
+                dailyData[date].total 
++= m.weight;
                 dailyData[date].count += 1;
             });
-            return Object.entries(dailyData).map(([date, data]) => ({
-                timestamp: new Date(date),
+return Object.entries(dailyData).map(([date, data]) => ({
+                timestamp: new Date(date + 'T00:00:00Z'),
                 weight: data.total / data.count
             }));
-        }
+}
+        
+        function calculateWeeklyAverages(measurements) {
+            const weeklyData = {};
+            measurements.forEach(m => {
+                const date = new Date(m.timestamp);
+                const year = date.getUTCFullYear();
+                const startOfYear = new Date(Date.UTC(year, 0, 1));
+                const diff = date - startOfYear;
+                const oneDay = 1000 * 60 * 60 * 24;
+                const dayOfYear = Math.floor(diff / oneDay) + 1;
+                
+                // Calcular semana (1-52), semanas 53 se agrupan en 52
+                let week = Math.ceil(dayOfYear / 7);
+                if (week > 52) week = 52;
+                
+                const weekKey = `${year}-${String(week).padStart(2, '0')}`;
+                
+                // Calcular el primer día de la semana (representativo)
+                const firstDayOfWeek = new Date(Date.UTC(year, 0, (week - 1) * 7 + 1));
+
+                if (!weeklyData[weekKey]) {
+                    weeklyData[weekKey] = { total: 0, count: 0, firstDay: firstDayOfWeek };
+                }
+                weeklyData[weekKey].total += m.weight;
+                weeklyData[weekKey].count += 1;
+            });
+
+            return Object.entries(weeklyData).map(([weekKey, data]) => ({
+                timestamp: data.firstDay,
+                weight: data.total / data.count
+            }));
+        
+}
+
 
         function updateChart() {
             const measurements = JSON.parse(localStorage.getItem('weightMeasurements') || '[]');
-            measurements.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+measurements.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
             
             let dataToUse = measurements;
-            if (averageSwitch.checked) {
+            let timeUnit = 'day';
+            let displayFormat = 'yyyy-MM-DD';
+
+if (averageSwitch.checked) {
                 dataToUse = calculateDailyAverages(measurements);
+} else if (weeklyAverageSwitch.checked) {
+                dataToUse = calculateWeeklyAverages(measurements);
+                timeUnit = 'week';
+                displayFormat = 'yyyy-MM-DD';
             }
 
-            // Filtrar los datos por rango de fechas
-            const startDate = startDateInput.value ? new Date(startDateInput.value + 'T00:00:00Z') : null;
-            const endDate = endDateInput.value ? new Date(endDateInput.value + 'T23:59:59Z') : null;
 
-            const filteredData = dataToUse.filter(m => {
+            // Filtrar los datos por rango de fechas
+            const startDate = startDateInput.value ?
+new Date(startDateInput.value + 'T00:00:00Z') : null;
+            const endDate = endDateInput.value ? new Date(endDateInput.value + 'T23:59:59Z') : null;
+const filteredData = dataToUse.filter(m => {
                 const date = new Date(m.timestamp);
                 const isAfterStart = !startDate || date >= startDate;
                 const isBeforeEnd = !endDate || date <= endDate;
                 return isAfterStart && isBeforeEnd;
-            });
+          
+  });
 
             const data = filteredData.map(m => ({
                 x: new Date(m.timestamp),
                 y: m.weight
             }));
-            
-            if (chart) {
+if (chart) {
                 chart.destroy();
-            }
+}
 
             chart = new Chart(ctx, {
                 data: {
                     datasets: [
                         {
-                            type: 'line',
+                      
+      type: 'line',
                             label: 'Peso (KG)',
                             data: data,
                             borderColor: 'rgba(75, 192, 192, 0.8)',
-                            backgroundColor: 'rgba(75, 192, 192, 0.8)',
+  
+                          backgroundColor: 'rgba(75, 192, 192, 0.8)',
                             borderWidth: 2,
                             tension: 0.1,
-                            pointRadius: 0
+            
+                pointRadius: 0
                         },
                         {
                             type: 'scatter',
-                            label: 'Mediciones',
+      
+                      label: 'Mediciones',
                             data: data,
                             borderColor: 'rgb(75, 192, 192)',
-                            backgroundColor: 'rgb(75, 192, 192)',
+                 
+           backgroundColor: 'rgb(75, 192, 192)',
                             pointRadius: 5,
                             pointHoverRadius: 7
                         }
-                    ]
+    
+                ]
                 },
                 options: {
                     responsive: true,
                     scales: {
-                        x: {
+         
+               x: {
                             type: 'time',
                             time: {
-                                unit: 'day',
+                          
+      unit: timeUnit,
                                 displayFormats: {
-                                    day: 'yyyy-MM-DD'
-                                }
+                                    day: displayFormat,
+                                    week: displayFormat
+                       
+         }
                             },
                             title: {
                                 display: true,
-                                text: 'Fecha y Hora (UTC)'
+ 
+                               text: 'Fecha y Hora (UTC)'
                             }
                         },
-                        y: {
+             
+           y: {
                             title: {
                                 display: true,
-                                text: 'Peso (KG)'
+                          
+      text: 'Peso (KG)'
                             }
                         }
                     },
-                    plugins: {
+                    
+plugins: {
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    let label = 'Peso: ';
-                                    if (context.parsed.y !== null) {
+           
+                         let label = 'Peso: ';
+if (context.parsed.y !== null) {
                                         label += context.parsed.y + ' KG';
-                                    }
+}
                                     return label;
-                                },
+},
                                 title: function(context) {
                                     return formatDate(new Date(context[0].parsed.x));
-                                }
+}
                             }
                         },
                         legend: {
-                            display: false
+                       
+     display: false
                         }
                     }
                 }
             });
-        }
+}
 
         function exportToCSV() {
             const measurements = JSON.parse(localStorage.getItem('weightMeasurements') || '[]');
-            measurements.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+measurements.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
             let csvContent = "data:text/csv;charset=utf-8,";
             csvContent += "Fecha y Hora (UTC),Peso (KG)\n";
-            measurements.forEach(m => {
+measurements.forEach(m => {
                 const date = formatDate(new Date(m.timestamp));
                 csvContent += `${date},${m.weight}\n`;
             });
-            const encodedUri = encodeURI(csvContent);
+const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
             link.setAttribute("download", "seguimiento_peso.csv");
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        }
+}
 
         function resetData() {
             if (confirm("¿Está seguro de que desea borrar todos los datos? Esta acción no se puede deshacer.")) {
                 localStorage.removeItem('weightMeasurements');
-                updateTable();
+updateTable();
                 updateChart();
                 alert("Todos los datos han sido borrados.");
             }
         }
 
         addButton.addEventListener('click', addWeight);
-        exportButton.addEventListener('click', exportToCSV);
+exportButton.addEventListener('click', exportToCSV);
         resetButton.addEventListener('click', resetData);
         averageSwitch.addEventListener('change', updateChart);
+        weeklyAverageSwitch.addEventListener('change', updateChart);
         startDateInput.addEventListener('change', updateChart);
         endDateInput.addEventListener('change', updateChart);
         
@@ -352,4 +423,3 @@
     </script>
 </body>
 </html>
-
